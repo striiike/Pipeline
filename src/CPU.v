@@ -8,7 +8,7 @@
 `include "M_REG.v"
 `include "W_REG.v"
 `include "D_NPC.v"
-`include "u_CTRL.v"
+`include "CTRL.v"
 `include "M_BE.v"
 `include "M_LB.v"
 `include "E_MDU.v"
@@ -106,7 +106,7 @@ module CPU (
 
     /// exception end
 
-    //////////////////////////// F ////////////////////////////////////////////////////////////////////////////////
+    // -------- F-Stage --------
     // F-wire
     wire [31:0] F_pc, F_instr;
     wire [31:0] MUX_npc;
@@ -133,8 +133,8 @@ module CPU (
         .rst    (reset),
         .pc     (F_pc)
     );
-    //////////////////////////// D ////////////////////////////////////////////////////////////////////////////////
 
+    // -------- D-Stage --------
     // D-wire
     wire [31:0] D_pc, D_pc8, D_instr, D_RD1, D_RD2, D_npc, D_ext;
     wire [31:0] W_pc;
@@ -204,7 +204,7 @@ module CPU (
 
 
     // D_CTRL
-    u_CTRL D_CTRL (
+    CTRL D_CTRL (
         .syscall    (D_Syscall),
         .RI         (D_RI),
         .eret       (D_eret),
@@ -314,7 +314,7 @@ module CPU (
     assign E_shamt   = E_instr[10:6];
 
     // E_CTRL
-    u_CTRL E_CTRL (
+    CTRL E_CTRL (
         .mtc0     (E_mtc0),
         .loadstore(loadstore),
         .arch     (arch),
@@ -417,7 +417,7 @@ module CPU (
                      M_mdu;
 
     // M_CTRL
-    u_CTRL M_CTRL (
+    CTRL M_CTRL (
         .mtc0    (M_mtc0),
         .en_CP0  (en_CP0),
         .eret    (M_eret),
@@ -521,7 +521,7 @@ module CPU (
     assign W_rt = W_instr[20:16];
     assign W_rd = W_instr[15:11];
     // W_CTRLSS
-    u_CTRL W_CTRL (
+    CTRL W_CTRL (
         .instr   (W_instr),
         .W_fsel  (W_fsel),
         .W_sel_A3(W_sel_A3),
