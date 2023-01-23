@@ -26,14 +26,14 @@ module mips (
 
     output [31:0] w_inst_addr  // W 级 PC
 );
-
+    // i wonder 
     wire [31:0] PrAddr, PrWD, PrRD;
     wire [3:0] PrByteen;
 
     wire [31:2] TCAddr;
     wire [31:0] TCRD1, TCRD2, TCWD;
 
-
+    wire [5:0] HWInt = {3'b000, interrupt, IRQ2, IRQ1};
     CPU CPU (
         .clk         (clk),
         .reset       (reset),
@@ -80,7 +80,7 @@ module mips (
     );
 
 
-    wire [5:0] HWInt = {3'b000, interrupt, IRQ2, IRQ1};
+    
 
     TC TC1 (
         .clk  (clk),

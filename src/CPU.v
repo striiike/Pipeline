@@ -153,7 +153,7 @@ module CPU (
     wire [ 1:0] D_sel_A3;
     wire [ 1:0] D_sel_EXT;
     wire [ 1:0] D_sel_NPC;
-    wire [ 1:0] D_sel_CMP;
+    wire [ 3:0] D_sel_CMP;
 
 
     D_REG D_REG (
@@ -257,7 +257,7 @@ module CPU (
         .npc   (D_npc),
         .isNPC (F_sel_npc)
     );
-    //////////////////////////// E /////////////////////////////////////////////////////////////////////////
+    // -------- E-Stage --------
 
     // E-wire
     wire [31:0] E_pc, E_pc8, E_instr, E_RD1, E_RD2, E_alu, E_ext, E_mdu;
@@ -269,7 +269,11 @@ module CPU (
     wire [31:0] MUX_srcB;
     wire [31:0] E_out;
 
-    wire [3:0] E_sel_ALU, E_sel_MDU;
+    wire loadstore;
+    wire arch;
+
+    wire [3:0] E_sel_MDU;
+    wire [4:0] E_sel_ALU;
     wire E_sel_srcB;
     wire E_fsel;
     E_REG E_REG (
@@ -358,8 +362,7 @@ module CPU (
     );
 
 
-    //////////////////////////// M ////////////////////////////////////////////////////////////////////////////////
-
+    // -------- M-Stage --------
     // M-wire
     wire [31:0] M_pc, M_pc8, M_instr, M_RD1, M_RD2, M_alu, M_ext, M_RD, M_RD_temp, M_mdu;
     wire [4:0] M_rs, M_rt, M_rd, M_Addr;
@@ -370,9 +373,9 @@ module CPU (
 
     wire [31:0] M_out;
 
-    wire [1:0] M_fsel, M_sel_st, M_sel_ld;
+    wire [1:0] M_fsel, M_sel_st;
+    wire [2:0] M_sel_ld;
 
-    wire loadstore;
 
     M_REG M_REG (
 
@@ -481,7 +484,7 @@ module CPU (
     );
 
 
-    //////////////////////////// W ///////////////////////////////////////////////////////////////////////////////////
+    // -------- W-Stage --------
     // W-wire
     wire [31:0] W_pc8, W_instr, W_alu, W_ext, W_RD, W_mdu;
 

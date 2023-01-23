@@ -1,17 +1,25 @@
-`define beq 2'b00
-`define bne 2'b01
-`define bbb 2'b10
-
+`include "const.v"
 
 module D_CMP (
     input  [31:0] cmp1,
     input  [31:0] cmp2,
     output        isBr,
-    input  [ 1:0] brOp
+    input  [ 3:0] brOp
 );
-    assign isBr = (brOp == `beq) ? (cmp1 == cmp2) : 
-                  (brOp == `bne) ? (cmp1 != cmp2) :  
-                  (brOp == `bbb) ? (cmp1 != cmp2) : 0;
-    // only support beq now
+
+    wire gez = $signed(cmp1) >= 0;
+    wire gtz = $signed(cmp1) > 0;
+    wire lez = $signed(cmp1) <= 0;
+    wire ltz = $signed(cmp1) < 0;
+
+    assign isBr = (brOp == `cmp_beq)    ? (cmp1 == cmp2) : 
+                  (brOp == `cmp_bne)    ? (cmp1 != cmp2) :  
+                  (brOp == `cmp_bgez)   ? gez :  
+                  (brOp == `cmp_bgtz)   ? gtz :  
+                  (brOp == `cmp_blez)   ? lez :  
+                  (brOp == `cmp_bltz)   ? ltz :  
+                  (brOp == `cmp_bltzal) ? ltz : 
+                  (brOp == `cmp_bgezal) ? gez : 0;
+
 
 endmodule  //CMP

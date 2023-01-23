@@ -21,17 +21,6 @@ module W_REG (
     output reg [31:0] W_RD,
     output reg [31:0] W_mdu
 );
-
-    initial begin
-        W_instr = 0;
-        W_pc    = 0;
-        W_pc8   = 0;
-        W_alu   = 0;
-        W_RD    = 0;
-        W_mdu   = 0;
-        cp0out  = 0;
-    end
-
     always @(posedge clk) begin
         if (reset | req) begin
             W_instr <= 0;

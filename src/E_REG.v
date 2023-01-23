@@ -25,17 +25,6 @@ module E_REG (
     output reg [31:0] E_RD2
 );
 
-    initial begin
-        E_instr = 0;
-        E_pc    = 0;
-        E_pc8   = 0;
-        E_ext   = 0;
-        E_RD1   = 0;
-        E_RD2   = 0;
-        ExcOut  = 0;
-        bdout   = 0;
-    end
-
     always @(posedge clk) begin
         if (reset | clr | req) begin
             E_instr <= 0;

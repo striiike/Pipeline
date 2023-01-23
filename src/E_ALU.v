@@ -1,13 +1,6 @@
 `timescale 1ns / 1ps
 
-`define alu_AND 4'b0000
-`define alu_OR 4'b0001
-`define alu_ADD 4'b0010
-`define alu_SUB 4'b0110
-`define alu_SLT 4'b0111
-`define alu_LUI 4'b1000
-`define alu_SLL 4'b1010
-`define alu_SLTU 4'b1011
+`include "const.v"
 
 module E_ALU (
     input loadstore,
@@ -15,24 +8,41 @@ module E_ALU (
     output OvArch,
     output OvDM,
 
-    input  [ 3:0] ALUControl,
+    input  [ 4:0] ALUControl,
     input  [31:0] A,
     input  [31:0] B,
     input  [ 4:0] shamt,
     output        isZero,
     output [31:0] result
 );
-    wire [31:0] slt = ($signed(A) < $signed(B));
+    wire [31:0] slt   = ($signed(A) < $signed(B));
+    wire [31:0] sltu  = {1'b0, A} < {1'b0, B};
+    wire [31:0] slti  = ($signed(A) < $signed(B));
+    wire [31:0] sltiu = {1'b0, A} < {B[31], B};
 
-    assign result = (ALUControl == `alu_AND) ? A & B :
-                    (ALUControl == `alu_OR) ? A | B :
-                    (ALUControl == `alu_SUB) ? A - B :
-                    (ALUControl == `alu_ADD) ? A + B :
-                    (ALUControl == `alu_SLT) ? slt :
-                    (ALUControl == `alu_LUI) ? B :
-                    (ALUControl == `alu_SLL) ? B << shamt : 
-                    (ALUControl == `alu_SLTU) ? (A < B) : 
-                    0;
+    wire [31:0] sra   = $signed($signed(B) >>> shamt);
+    wire [31:0] srav  = $signed($signed(B) >>> A[4:0]);
+
+    assign result = (ALUControl == `alu_ADD)    ? A + B :
+                    (ALUControl == `alu_SUB)    ? A - B :
+                    (ALUControl == `alu_SLT)    ? slt :
+                    (ALUControl == `alu_SLTU)   ? sltu :
+                    (ALUControl == `alu_SLTI)   ? slti :
+                    (ALUControl == `alu_SLTIU)  ? sltiu :
+
+                    (ALUControl == `alu_AND)    ? A & B :
+                    (ALUControl == `alu_LUI)    ? B :
+                    (ALUControl == `alu_NOR)    ? ~(A | B) :
+                    (ALUControl == `alu_OR)     ? A | B :
+                    (ALUControl == `alu_XOR)    ? A ^ B :
+
+                    (ALUControl == `alu_SLL)    ? B << shamt  :
+                    (ALUControl == `alu_SLLV)   ? B << A[4:0] :
+                    (ALUControl == `alu_SRA)    ? sra :
+                    (ALUControl == `alu_SRAV)   ? srav :
+                    (ALUControl == `alu_SRL)    ? B >> shamt  :
+                    (ALUControl == `alu_SRLV)   ? B >> A[4:0] :
+                                                  0;
 
     wire [32:0] tempA = {A[31], A};
     wire [32:0] tempB = {B[31], B};

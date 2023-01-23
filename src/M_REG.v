@@ -27,20 +27,7 @@ module M_REG (
     output reg [31:0] M_mdu
 );
 
-    initial begin
-        M_instr = 0;
-        M_pc    = 0;
-        M_pc8   = 0;
-        M_ext   = 0;
-        M_RD1   = 0;
-        M_RD2   = 0;
-        M_alu   = 0;
-        M_mdu   = 0;
-        ExcOut  = 0;
-        bdout   = 0;
-    end
-
-    always @(posedge clk, posedge clr) begin
+    always @(posedge clk) begin
         if (reset | req) begin
             M_instr <= 0;
             M_pc    <= (reset) ? 32'h3000 : req ? 32'h4180 : 0;

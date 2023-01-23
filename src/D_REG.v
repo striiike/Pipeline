@@ -17,15 +17,6 @@ module D_REG (
     output reg [31:0] D_pc8
 );
 
-    initial begin
-        D_instr = 0;
-        D_pc    = 0;
-        D_pc8   = 0;
-        ExcOut  = 0;
-        bdout   = 0;
-    end
-
-
     always @(posedge clk) begin
         if (reset | req) begin
             D_instr <= 0;
