@@ -18,16 +18,17 @@ module W_REG (
     output reg [31:0] W_pc,
     output reg [31:0] W_pc8,
     output reg [31:0] W_alu,
-    output reg [31:0] W_RD,
+    output     [31:0] W_RD,
     output reg [31:0] W_mdu
 );
+
+    assign W_RD = M_RD;
     always @(posedge clk) begin
         if (reset | req) begin
             W_instr <= 0;
-            W_pc    <= req ? 32'h4180 : 0;
+            W_pc    <= req ? 32'hbfc00380 : 0;
             W_pc8   <= 0;
             W_alu   <= 0;
-            W_RD    <= 0;
             W_mdu   <= 0;
             cp0out  <= 0;
         end else if (en) begin
@@ -35,7 +36,6 @@ module W_REG (
             W_pc    <= M_pc;
             W_pc8   <= M_pc8;
             W_alu   <= M_alu;
-            W_RD    <= M_RD;
             W_mdu   <= M_mdu;
             cp0out  <= cp0;
         end

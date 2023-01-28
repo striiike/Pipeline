@@ -4,6 +4,8 @@ module M_REG (
     output reg [4:0] ExcOut,
     input            bd,
     output reg       bdout,
+    input      [31:0] BadVAddrIn,
+    output reg [31:0] BadVAddrOut,   
 
     input             clk,
     input             reset,
@@ -30,7 +32,7 @@ module M_REG (
     always @(posedge clk) begin
         if (reset | req) begin
             M_instr <= 0;
-            M_pc    <= (reset) ? 32'h3000 : req ? 32'h4180 : 0;
+            M_pc    <= (reset) ? 32'hbfc00000 : req ? 32'hbfc00380 : 0;
             M_pc8   <= 0;
             M_ext   <= 0;
             M_RD1   <= 0;
@@ -39,6 +41,7 @@ module M_REG (
             M_mdu   <= 0;
             ExcOut  <= 0;
             bdout   <= 0;
+            BadVAddrOut <= 0;
         end else if (en) begin
             M_instr <= E_instr;
             M_pc    <= E_pc;
@@ -50,6 +53,7 @@ module M_REG (
             M_mdu   <= E_mdu;
             ExcOut  <= ExcIn;
             bdout   <= bd;
+            BadVAddrOut <= BadVAddrIn;
         end
     end
 

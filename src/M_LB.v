@@ -8,7 +8,6 @@
 module M_LB (
    input        Ov,
    input  [31:0]addr,
-   output reg  AdEL,
 
    input  [ 2:0] M_sel_ld,
    input  [31:0] RD,
@@ -40,27 +39,26 @@ module M_LB (
 
 
    always @(*) begin
-        AdEL = 0;
 
-        if (M_sel_ld == `lw) begin          //
-            if (|addr10[1:0])  AdEL = 1'b1;
-        end
-        if (M_sel_ld == `lh || M_sel_ld == `lhu) begin          //
-            if (addr10[0])  AdEL = 1'b1;
-        end
-        if (M_sel_ld == `lh  || M_sel_ld == `lb ||
-            M_sel_ld == `lhu || M_sel_ld == `lbu) begin   // load timer with lb & lh
-            if ((addr >= 32'h7f00 && addr <= 32'h7f0b)
-              ||(addr >= 32'h7f10 && addr <= 32'h7f1b)) AdEL = 1'b1;
-        end
-        if (M_sel_ld == `lw  || M_sel_ld == `lh || M_sel_ld == `lb ||
-            M_sel_ld == `lhu || M_sel_ld == `lbu) begin 
-            if (Ov) AdEL = 1'b1;                            // arch overflow
-            if (!((addr >= 32'h7f00 && addr <= 32'h7f0b)    // addr overflow  
-              ||(addr >= 32'h7f10 && addr <= 32'h7f1b)
-              ||(addr >= 32'h0000 && addr <= 32'h2fff)
-              ||(addr >= 32'h7f20 && addr <= 32'h7f23))) AdEL = 1'b1;
-        end
+      //   if (M_sel_ld == `lw) begin          //
+      //       if (|addr10[1:0])  AdEL = 1'b1;
+      //   end
+      //   if (M_sel_ld == `lh || M_sel_ld == `lhu) begin          //
+      //       if (addr10[0])  AdEL = 1'b1;
+      //   end
+      //   if (M_sel_ld == `lh  || M_sel_ld == `lb ||
+      //       M_sel_ld == `lhu || M_sel_ld == `lbu) begin   // load timer with lb & lh
+      //       if ((addr >= 32'h7f00 && addr <= 32'h7f0b)
+      //         ||(addr >= 32'h7f10 && addr <= 32'h7f1b)) AdEL = 1'b1;
+      //   end
+      //   if (M_sel_ld == `lw  || M_sel_ld == `lh || M_sel_ld == `lb ||
+      //       M_sel_ld == `lhu || M_sel_ld == `lbu) begin 
+      //       if (Ov) AdEL = 1'b1;                            // arch overflow
+      //       if (!((addr >= 32'h7f00 && addr <= 32'h7f0b)    // addr overflow  
+      //         ||(addr >= 32'h7f10 && addr <= 32'h7f1b)
+      //         ||(addr >= 32'h0000 && addr <= 32'h2fff)
+      //         ||(addr >= 32'h7f20 && addr <= 32'h7f23))) AdEL = 1'b1;
+      //   end
 
     end
 endmodule  //M_LB load in byte

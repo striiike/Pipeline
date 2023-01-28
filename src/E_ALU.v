@@ -12,7 +12,6 @@ module E_ALU (
     input  [31:0] A,
     input  [31:0] B,
     input  [ 4:0] shamt,
-    output        isZero,
     output [31:0] result
 );
     wire [31:0] slt   = ($signed(A) < $signed(B));

@@ -53,7 +53,7 @@ module CTRL (
     output loadstore,
     output arch,
     output jump,
-    output break
+    output Break
     
 
 );
@@ -105,8 +105,8 @@ module CTRL (
     wire bgtz  = (op == `op_bgtz );
     wire blez  = (op == `op_blez );
     wire bltz  = (op == `op_branch && rt == `rt_bltz  );
-    wire bltzal= (op == `op_branch && rt == `rt_bgezal);
-    wire bgezal= (op == `op_branch && rt == `rt_bltzal);
+    wire bltzal= (op == `op_branch && rt == `rt_bltzal);
+    wire bgezal= (op == `op_branch && rt == `rt_bgezal);
     wire j     = (op == `op_j    );
     wire jal   = (op == `op_jal  );
     wire jr    = (op == `op_r && f == `f_jr   );    
@@ -126,7 +126,7 @@ module CTRL (
     wire sh    = (op == `op_sh   );
     wire sw    = (op == `op_sw   );    
     // ---- self-trapped operation ----
-    assign break    = (op == `op_r && f == `f_break  );
+    assign Break    = (op == `op_r && f == `f_break  );
     assign syscall  = (op == `op_r && f == `f_syscall);
     // ---- priority operation ----
     assign mtc0     = (instr[31:21] == `op_mtc0);
@@ -175,10 +175,10 @@ module CTRL (
                 | md | mt | mf 
                 | sll | srl | sra
                 | sllv | srlv | srav
-                | mtc0 | mfc0 | eret | syscall | break);
+                | mtc0 | mfc0 | eret | syscall | Break);
 
     assign en_CP0 = mtc0;
-    assign jump = branch | branchal | j | jr | jal | jalr;
+    assign jump = branch | branchal | j | jr | jal | jalr; // delayed branching
     // ---- exception end ----
 
 
@@ -300,7 +300,7 @@ module CTRL (
                                                rt ;
 
     assign D_Tuse_rs = (cal_i | cal_r | load | store | md | mt) ? 1 : 
-                       (branch | jr | jalr)                     ? 0 : 
+                       (branch | jr | jalr | branchal)          ? 0 :      // only bgezal and bltzal, so Tuse_rt excluded
                                                                 `inf;
 
     assign D_Tuse_rt = (cal_r | md)     ? 1 :

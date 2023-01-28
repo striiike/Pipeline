@@ -20,26 +20,21 @@ module E_MDU (
 );
     reg [31:0] hi, lo, hi_temp, lo_temp;
     reg [31:0] status;
-    initial begin
-        hi      <= 0;
-        lo      <= 0;
-        hi_temp <= 0;
-        lo_temp <= 0;
-        busy    <= 1'b0;
-        status  <= 0;
-    end
-    assign E_mdu = (E_sel_MDU == `mdu_mfhi) ? hi : (E_sel_MDU == `mdu_mflo) ? lo : 0;
+
+    assign E_mdu = (E_sel_MDU == `mdu_mfhi) ? hi : 
+                   (E_sel_MDU == `mdu_mflo) ? lo : 0;
+
     assign start = (E_sel_MDU == `mdu_mult) || (E_sel_MDU == `mdu_multu) || (E_sel_MDU == `mdu_div) || (E_sel_MDU == `mdu_divu);
 
     always @(posedge clk) begin
-        if (reset | (status == 0 && req)) begin
+        if (reset) begin
             hi      <= 0;
             lo      <= 0;
             hi_temp <= 0;
             lo_temp <= 0;
             busy    <= 1'b0;
             status  <= 0;
-        end else begin
+        end else if (~req) begin
             if (status == 0) begin
                 case (E_sel_MDU)
                     `mdu_mult: begin
@@ -81,6 +76,7 @@ module E_MDU (
                     status <= status - 1;
                 end
             end
+
         end
 
     end

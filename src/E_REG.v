@@ -6,6 +6,8 @@ module E_REG (
     output reg [4:0] ExcOut,
     input            bd,
     output reg       bdout,
+    input      [31:0] BadVAddrIn,
+    output reg [31:0] BadVAddrOut,
 
     input             clk,
     input             reset,
@@ -28,13 +30,15 @@ module E_REG (
     always @(posedge clk) begin
         if (reset | clr | req) begin
             E_instr <= 0;
-            E_pc    <= (reset) ? 32'h3000 : (req) ? 32'h4180 : (clr) ? D_pc : 0;
-            E_pc8   <= (reset) ? 32'h3000 : (req) ? 32'h4188 : (clr) ? D_pc8 : 0;
+            E_pc    <= (reset) ? 32'hbfc00000 : (req) ? 32'hbfc00380 : (clr) ? D_pc : 0;
+            E_pc8   <= (reset) ? 32'hbfc00000 : (req) ? 32'hbfc00380 : (clr) ? D_pc8 : 0;
             E_ext   <= 0;
             E_RD1   <= 0;
             E_RD2   <= 0;
             ExcOut  <= 0;
             bdout   <= (reset) ? 32'h0000 : (req) ? 0 : (clr) ? bd : 0;
+            BadVAddrOut <= 0;
+
         end else if (en) begin
             E_instr <= D_instr;
             E_pc    <= D_pc;
@@ -44,6 +48,8 @@ module E_REG (
             E_RD2   <= D_RD2;
             ExcOut  <= ExcIn;
             bdout   <= bd;
+            BadVAddrOut <= BadVAddrIn;
+
         end
     end
 
