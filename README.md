@@ -1,2 +1,2 @@
 # hihihi
-Currently pass SRAM test.
+Currently pass AXI func test.
