@@ -14,6 +14,7 @@ module M_BE (
     input  [31:0]addr,
     output reg  AdES,
     output reg  AdEL,
+    output reg [1:0]  data_size,
 
     input  [1:0] M_sel_st,
     input  [2:0] M_sel_ld,
@@ -37,6 +38,15 @@ module M_BE (
     always @(*) begin
         AdES = 0;
         AdEL = 0;
+
+        if (M_sel_st == `sw || M_sel_ld == `lw) 
+            data_size = 2'b10;
+        if (M_sel_st == `sh || M_sel_ld == `lh || M_sel_ld == `lhu)
+            data_size = 2'b01;
+        if (M_sel_st == `sb || M_sel_ld == `lb || M_sel_ld == `lbu)
+            data_size = 2'b00;
+
+
 
         if (M_sel_st == `sw) begin          //
             if (|addr10[1:0])  AdES = 1'b1;

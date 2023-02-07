@@ -1,3 +1,53 @@
+// F
+// MUX_npc
+`define f_pc4 1'b0
+`define f_npc 1'b1
+
+// E
+// MUX_srcB
+`define e_rd2 1'b0
+`define e_ext 1'b1
+
+
+// W
+// MUX_WD3
+`define w_rd 3'b000
+`define w_alu 3'b001
+`define w_pc8 3'b010
+`define w_mdu 3'b011
+`define w_cp0 3'b100
+
+`define grf_rt 2'b00
+`define grf_rd 2'b01
+`define grf_ra 2'b10
+
+`define ext_zero 2'b00
+`define ext_sign 2'b01
+`define ext_lui 2'b10
+
+
+`define e_fsel_pc8 2'b01
+`define e_fsel_ext 2'b00
+
+`define m_fsel_mdu 2'b10
+`define m_fsel_pc8 2'b01
+`define m_fsel_alu 2'b00
+
+`define m_sw 2'b00
+`define m_sh 2'b01
+`define m_sb 2'b10
+
+
+
+
+
+
+
+
+
+
+
+
 
 `define op_r      6'b000000
 `define op_branch 6'b000001

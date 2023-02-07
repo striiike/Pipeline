@@ -49,13 +49,13 @@ module E_MDU (
                     end
                     `mdu_div: begin
                         busy    <= 1'b1;
-                        status  <= 9;
+                        status  <= 7;
                         lo_temp <= $signed(A) / $signed(B);
                         hi_temp <= $signed(A) % $signed(B);
                     end
                     `mdu_divu: begin
                         busy    <= 1'b1;
-                        status  <= 9;
+                        status  <= 7;
                         lo_temp <= A / B;
                         hi_temp <= A % B;
                     end

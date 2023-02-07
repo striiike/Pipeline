@@ -1,63 +1,38 @@
 `include "const.v"
-// F
-// MUX_npc
-`define f_pc4 1'b0
-`define f_npc 1'b1
 
-// E
-// MUX_srcB
-`define e_rd2 1'b0
-`define e_ext 1'b1
-
-// W
-// MUX_WD3
-`define w_rd 3'b000
-`define w_alu 3'b001
-`define w_pc8 3'b010
-`define w_mdu 3'b011
-`define w_cp0 3'b100
-
-`define grf_rt 2'b00
-`define grf_rd 2'b01
-`define grf_ra 2'b10
-
-`define ext_zero 2'b00
-`define ext_sign 2'b01
-`define ext_lui 2'b10
+// `include "D_GRF.v"
+// `include "F_block.v"
+// `include "D_block.v"
+// `include "E_block.v"
+// `include "M_block.v"
+// `include "W_block.v"
 
 
-`define e_fsel_pc8 2'b01
-`define e_fsel_ext 2'b00
+module CPU (
+    input       clk,
+    input       resetn,
+    input [5:0] ext_int,
 
-`define m_fsel_mdu 2'b10
-`define m_fsel_pc8 2'b01
-`define m_fsel_alu 2'b00
+    // new
+    //inst sram-like 
+    output         inst_req,
+    output         inst_wr,
+    output [1 : 0] inst_size,
+    output [ 31:0] inst_addr,
+    output [ 31:0] inst_wdata,
+    input  [ 31:0] inst_rdata,
+    input          inst_addr_ok,
+    input          inst_data_ok,
 
-`define m_sw 2'b00
-`define m_sh 2'b01
-`define m_sb 2'b10
-
-module mycpu_top (
-    input         clk,
-    input         resetn,
-    input  [5:0]  ext_int,
-
-    // output [31:0] macroscopic_pc,   
-    // output [31:0] m_inst_addr,
-
-    input  [31:0] inst_sram_rdata,
-    output [31:0] inst_sram_addr,
-
-    output        inst_sram_en,
-    output [3:0]  inst_sram_wen,
-    output [31:0] inst_sram_wdata,
-
-
-    input  [31:0] data_sram_rdata,    
-    output [31:0] data_sram_addr,
-    output [31:0] data_sram_wdata,
-    output [ 3:0] data_sram_wen,
-    output        data_sram_en,
+    //data sram-like 
+    output         data_req,
+    output         data_wr,
+    output [1 : 0] data_size,
+    output [ 31:0] data_addr,
+    output [ 31:0] data_wdata,
+    input  [ 31:0] data_rdata,
+    input          data_addr_ok,
+    input          data_data_ok,
 
     output [ 3:0] debug_wb_rf_wen,
     output [ 4:0] debug_wb_rf_wnum,
@@ -65,509 +40,353 @@ module mycpu_top (
     output [31:0] debug_wb_pc
 );
 
-    assign inst_sram_en = 1;
-    assign inst_sram_wen = 0;
-    assign inst_sram_wdata = 32'b0;
-
-    // assign macroscopic_pc = M_pc;
-    wire [31:0] D_Tuse_rs, D_Tuse_rt, E_Tnew, M_Tnew, W_Tnew;
-
-    wire D_stall_rs_E, D_stall_rs_M, D_stall_rt_E, D_stall_rt_M, D_stall_rt, D_stall_rs;
-    wire D_stall, D_stall_mdu, D_instr_mdu, busy, start;
-
-    wire [4:0] E_SAddr, M_SAddr;
-
-    wire D_Syscall, D_Break, E_OvArch, E_OvDM;
-    wire F_eret, D_eret, E_eret, M_eret;
-    wire [31:0] M_cp0, W_cp0, EPC, F_BadVAddr, D_BadVAddr, E_BadVAddr, M_BadVAddr;
-    wire [31:0] M_BadVAddr_new;
-    wire F_bd, D_bd, E_bd, M_bd;
-    wire E_mtc0, M_mtc0;
-    wire M_AdEL, M_AdES;
-    
-    wire en;
-    assign en = 1'b1;
-
-    wire [4:0] F_ExcCode, D_ExcCode, E_ExcCode, M_ExcCode;
-    wire [4:0] D_ExcCode_new, E_ExcCode_new, M_ExcCode_new;
-
-    /// exception
-    assign F_ExcCode = (F_AdEL) ? 5'd4 : 5'd0;
-
-    assign D_ExcCode_new = (D_ExcCode) ? D_ExcCode :
-                           (D_Break)   ? 5'd9      :
-                           (D_Syscall) ? 5'd8      :
-                           (D_RI)      ? 5'd10     : 5'd0;
-
-    assign E_ExcCode_new = (E_ExcCode) ? E_ExcCode :
-                           (E_OvArch)  ? 5'd12     : 5'd0;
-
-    assign M_ExcCode_new = (M_ExcCode) ? M_ExcCode :
-                           (M_AdEL)    ? 5'd4      : 
-                           (M_AdES)    ? 5'd5      : 5'd0;
-
-    assign M_BadVAddr_new = (M_AdEL || M_AdES) ? M_alu : M_BadVAddr;
-
-    /// exception end
-
-    // -------- F-Stage --------
-    // F-wire
-    wire [31:0] F_pc, F_instr;
-    wire [31:0] MUX_npc;
-
-    wire        F_sel_npc, F_AdEL;
-
-    // F-connect
-    assign MUX_npc     = (F_sel_npc == `f_npc) ? D_npc : F_pc + 4;
-
-    assign F_instr = (F_AdEL) ? 0 : inst_sram_rdata;
-    assign F_bd = D_jump; 
-    F_IFU F_IFU (
-        .req    (req),
-        .eret   (D_eret),
-        .EPC    (EPC),
-        .AdEL   (F_AdEL),
-        .F_eret   (F_eret),
-        .F_BadVAddr (F_BadVAddr),
-
-        .i_instr  (inst_sram_rdata),
-        .inst_sram_addr (inst_sram_addr),
-        .en     (~D_stall),
-        .clk    (clk),
-        .npc    (MUX_npc),
-        .rst    (~resetn),
-        .pc     (F_pc)
-    );
-
-    // -------- D-Stage --------
-    // D-wire
-    wire [31:0] D_pc, D_pc8, D_instr, D_RD1, D_RD2, D_npc, D_ext;
-    wire [31:0] W_pc;
-    wire [4:0] D_rs, D_rt, D_rd;
-    wire [15:0] D_imm;
-    wire [25:0] D_index;
-
-    wire [31:0] MUX_ext;
-    wire [31:0] HMUX_RD1;
-    wire [31:0] HMUX_RD2;
-    wire [ 4:0] MUX_A3;
-    wire [31:0] W_out;
-
-    wire        W_en_GRF;
-
-    wire [ 1:0] D_sel_A3;
-    wire [ 1:0] D_sel_EXT;
-    wire [ 1:0] D_sel_NPC;
-    wire [ 3:0] D_sel_CMP;
-
-
-    D_REG D_REG (
-        .req    (req),
-        .ExcIn  (F_ExcCode),
-        .ExcOut (D_ExcCode),
-        .bd     (F_bd),
-        .bdout  (D_bd),
-        .BadVAddrIn(F_BadVAddr),
-        .BadVAddrOut(D_BadVAddr),
-
-        .clk    (clk),
-        .reset  (~resetn),
-        .clr    (clr),
-        .en     (~D_stall),
-        .F_instr(F_instr),
-        .F_pc   (F_pc),
-        .D_instr(D_instr),
-        .D_pc   (D_pc),
-        .D_pc8  (D_pc8)
-    );
-
-    // D-connect
-    assign D_rs         = D_instr[25:21];
-    assign D_rt         = D_instr[20:16];
-    assign D_rd         = D_instr[15:11];
-    assign D_imm        = D_instr[15:0];
-    assign D_index      = D_instr[25:0];
-
-    assign MUX_A3       = (W_sel_A3 == `grf_rt) ? W_rt : (W_sel_A3 == `grf_rd) ? W_rd : (W_sel_A3 == `grf_ra) ? 5'b11111 : 5'b00000;
-
-    // hazard
-    assign HMUX_RD1     = (D_rs == E_Addr && E_Addr != 5'b0) ? E_out : (D_rs == M_Addr && M_Addr != 5'b0) ? M_out : D_RD1;
-    assign HMUX_RD2     = (D_rt == E_Addr && E_Addr != 5'b0) ? E_out : (D_rt == M_Addr && M_Addr != 5'b0) ? M_out : D_RD2;
-
-    // stall
-    assign D_stall_rs_E = (E_SAddr != 5'b0 && D_rs == E_SAddr) && (E_Tnew > D_Tuse_rs);
-    assign D_stall_rs_M = (M_SAddr != 5'b0 && D_rs == M_SAddr) && (M_Tnew > D_Tuse_rs);
-
-    assign D_stall_rs   = D_stall_rs_E | D_stall_rs_M;
-
-    assign D_stall_rt_E = (E_SAddr != 5'b0 && D_rt == E_SAddr) && (E_Tnew > D_Tuse_rt);
-    assign D_stall_rt_M = (M_SAddr != 5'b0 && D_rt == M_SAddr) && (M_Tnew > D_Tuse_rt);
-
-    assign D_stall_rt   = D_stall_rt_E | D_stall_rt_M;
-
-    assign D_stall_mdu  = (busy || start) && D_instr_mdu;
-    wire D_stall_eret = (F_eret || D_eret) & ((E_mtc0 & (E_rd == 5'd14)) || (M_mtc0 & (M_rd == 5'd14)));
-    assign D_stall      = D_stall_rs | D_stall_rt | D_stall_mdu | D_stall_eret;
-
-
-    // D_CTRL
-    CTRL D_CTRL (
-        .syscall    (D_Syscall),
-        .Break      (D_Break),
-        .RI         (D_RI),
-        .eret       (D_eret),
-        .jump       (D_jump),
-
-        .instr      (D_instr),
-        .D_sel_EXT  (D_sel_EXT),
-        .D_sel_NPC  (D_sel_NPC),
-        .D_sel_CMP  (D_sel_CMP),
-        .D_Tuse_rs  (D_Tuse_rs),
-        .D_Tuse_rt  (D_Tuse_rt),
-        .D_instr_mdu(D_instr_mdu)
-    );
-    // D_CTRL
-
-    D_GRF D_GRF (
-        .instr(F_instr),
-        .pc   (W_pc),
-        .clk  (clk),
-        .rst  (~resetn),
-        .A1   (D_rs),
-        .A2   (D_rt),
-        .A3   (MUX_A3),
-        .WE   (W_en_GRF),
-        .WD3  (W_out),
-        .RD1  (D_RD1),
-        .RD2  (D_RD2)
-    );
-
-    D_EXT D_EXT (
-        .D_EXTIn (D_imm),
-        .D_EXTOp (D_sel_EXT),
-        .D_EXTOut(D_ext)
-    );
-
-    D_CMP D_CMP (
-        .cmp1(HMUX_RD1),
-        .cmp2(HMUX_RD2),
-        .isBr(isBr),
-        .brOp(D_sel_CMP)
-    );
-
-    D_NPC D_NPC (
-        .sel   (D_sel_NPC),
-        .pc    (D_pc),
-        .brCtrl(isBr),
-        .imm16 ({{16{D_imm[15]}}, D_imm}),
-        .imm26 ({D_pc[31:28], D_index, 2'b00}),
-        .ra    (HMUX_RD1),
-        .npc   (D_npc),
-        .isNPC (F_sel_npc)
-    );
-    // -------- E-Stage --------
-
-    // E-wire
-    wire [31:0] E_pc, E_pc8, E_instr, E_RD1, E_RD2, E_alu, E_ext, E_mdu;
-    wire [4:0] E_shamt;
-    wire [4:0] E_rs, E_rt, E_rd, E_Addr;
-
-    wire [31:0] HMUX_srcA;
-    wire [31:0] HMUX_srcB;
-    wire [31:0] MUX_srcB;
-    wire [31:0] E_out;
-
-    wire loadstore;
-    wire arch;
-    wire E_load;
-
-    wire [3:0] E_sel_MDU;
-    wire [4:0] E_sel_ALU;
-    wire E_sel_srcB;
-    wire E_fsel;
-    E_REG E_REG (
-        .req    (req),
-        .ExcIn  (D_ExcCode_new),
-        .ExcOut (E_ExcCode),
-        .bd     (D_bd),
-        .bdout  (E_bd),
-        .BadVAddrIn(D_BadVAddr),
-        .BadVAddrOut(E_BadVAddr),
-
-        .clk    (clk),
-        .reset  (~resetn),
-        .clr    (D_stall),
-        .en     (en),
-        .D_instr(D_instr),
-        .D_pc   (D_pc),
-        .D_pc8  (D_pc8),
-        .D_ext  (D_ext),
-        .D_RD1  (HMUX_RD1),
-        .D_RD2  (HMUX_RD2),
-        .E_instr(E_instr),
-        .E_pc   (E_pc),
-        .E_pc8  (E_pc8),
-        .E_ext  (E_ext),
-        .E_RD1  (E_RD1),
-        .E_RD2  (E_RD2)
-    );
-
-    // E-connect
-    assign E_rs      = E_instr[25:21];
-    assign E_rt      = E_instr[20:16];
-    assign E_rd      = E_instr[15:11];
-
-    assign HMUX_srcA = (E_rs == M_Addr && M_Addr != 5'b0) ? M_out : 
-                       (E_rs == W_Addr && W_Addr != 5'b0) ? W_out : E_RD1;
-    assign HMUX_srcB = (E_rt == M_Addr && M_Addr != 5'b0) ? M_out : 
-                       (E_rt == W_Addr && W_Addr != 5'b0) ? W_out : E_RD2;
-
-    assign MUX_srcB  = (E_sel_srcB == `e_rd2) ? HMUX_srcB : E_ext;
-
-    assign E_out     = (E_fsel == `e_fsel_pc8) ? E_pc8 : E_ext;
-
-    assign E_shamt   = E_instr[10:6];
-
-    // E_CTRL
-    CTRL E_CTRL (
-        .mtc0     (E_mtc0),
-        .loadstore(loadstore),
-        .arch     (arch),
-
-        .instr     (E_instr),
-        .E_sel_ALU (E_sel_ALU),
-        .E_fsel    (E_fsel),
-        .E_sel_srcB(E_sel_srcB),
-        .E_Addr    (E_Addr),
-        .E_Tnew    (E_Tnew),
-        .E_SAddr   (E_SAddr),
-        .E_sel_MDU (E_sel_MDU)
-    );
-    // E_CTRL
-
-    E_ALU E_ALU (
-
-        .loadstore(loadstore),
-        .arch     (arch),
-        .OvArch   (E_OvArch),
-        .OvDM     (E_OvDM),
-
-        .ALUControl(E_sel_ALU),
-        .A         (HMUX_srcA),
-        .B         (MUX_srcB),
-        .shamt     (E_shamt),
-        .result    (E_alu)
-    );
-
-    E_MDU E_MDU (
-        .req      (req),
-        .clk      (clk),
-        .reset    (~resetn),
-        .A        (HMUX_srcA),
-        .B        (HMUX_srcB),
-        .E_sel_MDU(E_sel_MDU),
-        .E_mdu    (E_mdu),
-        .busy     (busy),
-        .start    (start)
-    );
-
-
-    // -------- M-Stage --------
-    // M-wire
-    wire [31:0] M_pc, M_pc8, M_instr, M_RD1, M_RD2, M_alu, M_ext, M_RD, M_RD_temp, M_mdu;
-    wire [4:0] M_rs, M_rt, M_rd, M_Addr;
-
-    wire [ 3:0] byteEn;
-
-    wire [31:0] HMUX_WD;
-
-    wire [31:0] M_out;
-
-    wire [1:0] M_fsel, M_sel_st;
-    wire [2:0] M_sel_ld;
-
-    wire M_loadstore;
-
-
-    M_REG M_REG (
-
-        .req    (req),
-        .ExcIn  (E_ExcCode_new),
-        .ExcOut (M_ExcCode),
-        .bd     (E_bd),
-        .bdout  (M_bd),        
-        .BadVAddrIn(E_BadVAddr),
-        .BadVAddrOut(M_BadVAddr),
-
-        .clk    (clk),
-        .reset  (~resetn),
-        .clr    (clr),
-        .en     (en),
-        .E_instr(E_instr),
-        .E_pc   (E_pc),
-        .E_pc8  (E_pc8),
-        .E_ext  (E_ext),
-        .E_RD1  (HMUX_srcA),
-        .E_RD2  (HMUX_srcB),
-        .E_alu  (E_alu),
-        .E_mdu  (E_mdu),
-        .M_instr(M_instr),
-        .M_pc   (M_pc),
-        .M_pc8  (M_pc8),
-        .M_ext  (M_ext),
-        .M_RD1  (M_RD1),
-        .M_RD2  (M_RD2),
-        .M_alu  (M_alu),
-        .M_mdu  (M_mdu)
-    );
-
-    // M-connect
-
-    assign M_rs    = M_instr[25:21];
-    assign M_rt    = M_instr[20:16];
-    assign M_rd    = M_instr[15:11];
-
-    assign HMUX_WD = (M_rt == W_Addr && W_Addr != 5'b0) ? W_out : M_RD2;
-
-    assign M_out   = (M_fsel == `m_fsel_pc8) ? M_pc8 : 
-                     (M_fsel == `m_fsel_alu) ? M_alu : 
-                     M_mdu;
-
-    // M_CTRL
-    CTRL M_CTRL (
-        .mtc0    (M_mtc0),
-        .en_CP0  (en_CP0),
-        .eret    (M_eret),
-        .loadstore(M_loadstore),
-
-        .instr   (M_instr),
-        .M_fsel  (M_fsel),
-        .M_sel_st(M_sel_st),
-        .M_sel_ld(M_sel_ld),
-        .M_Addr  (M_Addr),
-        .M_Tnew  (M_Tnew),
-        .M_SAddr (M_SAddr),
-        .M_en_DM (M_en_DM)
-    );
-    // M_CTRL
-
-    assign data_sram_addr   = M_alu & 32'h1FFFFFFF ;
-    
-    assign data_sram_wdata  = (M_sel_st == `m_sw) ? HMUX_WD : 
-                              (M_sel_st == `m_sh) ? {2{HMUX_WD[15:0]}} : 
-                              (M_sel_st == `m_sb) ? {4{HMUX_WD[7:0]}} : 
-                                                    0;
-    assign data_sram_wen = (req) ? 0 : byteEn;
-    assign data_sram_en  = |byteEn || M_loadstore;
-    // assign m_inst_addr   = M_pc;
-
-    M_BE M_BE (
-        .Ov      (M_Ov),
-        .addr    (M_alu & 32'h1FFFFFFF),
-        .AdES    (M_AdES),
-        .AdEL    (M_AdEL),
-
-        .M_sel_st(M_sel_st),
-        .M_sel_ld(M_sel_ld),
-        .addr10  (M_alu[1:0]),
-        .byteEn  (byteEn)
-    );
-
-
-    CP0 CP0(
-    .clk       (clk),
-    .reset     (~resetn),
-    .WE        (en_CP0),
-    .A1        (M_rd),
-    .A2        (M_rd),
-    .DIn       (HMUX_WD),
-    .DOut      (M_cp0),
-    .BDIn      (M_bd),
-    .VPC       (M_pc),
-    .BadVAddrIn(M_BadVAddr_new),
-    .ExcCodeIn (M_ExcCode_new),
-    .HWInt     (ext_int),
-    .EXLClr    (M_eret),
-    .Req       (req),
-    .EPCOut    (EPC)
-    );
-
-
-    // -------- W-Stage --------
-    // W-wire
-    wire [31:0] W_pc8, W_instr, W_alu, W_ext, W_RD, W_mdu;
-
-    wire [4:0] W_Addr;
-    wire [4:0] W_rs, W_rt, W_rd;
-
-    wire [2:0] W_fsel;
-    wire [1:0] W_sel_A3;
-
-    wire [2:0] W_sel_ld;
-
-    W_REG W_REG (
-
-        .req    (req),
-        .cp0    (M_cp0),
-        .cp0out (W_cp0),
-
-
-        .clk    (clk),
-        .reset  (~resetn),
-        .clr    (clr),
-        .en     (en),
-        .M_instr(M_instr),
-        .M_pc   (M_pc),
-        .M_pc8  (M_pc8),
-        .M_alu  (M_alu),
-        .M_RD   (data_sram_rdata),
-        .M_mdu  (M_mdu),
-        .W_instr(W_instr),
-        .W_pc   (W_pc),
-        .W_pc8  (W_pc8),
-        .W_alu  (W_alu),
-        .W_RD   (M_RD),
-        .W_mdu  (W_mdu)
-    );
-
-    // w-connect
-    assign W_rs = W_instr[25:21];
-    assign W_rt = W_instr[20:16];
-    assign W_rd = W_instr[15:11];
-    // W_CTRLSS
-    CTRL W_CTRL (
-        .instr   (W_instr),
-        .W_fsel  (W_fsel),
-        .W_sel_A3(W_sel_A3),
-        .W_en_GRF(W_en_GRF),
-        .W_Addr  (W_Addr),
-        .M_sel_ld(W_sel_ld),
-        .W_Tnew  (W_Tnew)
-    );
-    // W_CTRL
-
-    M_LB M_LB (
-    //    .Ov      (M_Ov),
-        .addr    (W_alu & 32'h1FFFFFFF),
-    //    .AdEL    (M_AdEL), // xian mei yong
-
-        .M_sel_ld(W_sel_ld),
-        .RD      (data_sram_rdata),
-        .addr10  (W_alu[1:0]),
-        .RD_real (W_RD)
-    );
-
-
-    assign debug_wb_rf_wen   = (W_en_GRF) ? 4'b1111 : 0;
-    assign debug_wb_rf_wnum  = MUX_A3;
-    assign debug_wb_rf_wdata = W_out;
-    assign debug_wb_pc       = W_pc;
-
-    assign W_out       = (W_fsel == `w_alu) ? W_alu : 
-                         (W_fsel == `w_pc8) ? W_pc8 : 
-                         (W_fsel == `w_mdu) ? W_mdu :
-                         (W_fsel == `w_cp0) ? W_cp0 :
-                                              W_RD;
+  assign inst_wr = 0;
+  assign inst_size = 2'b10;
+  assign inst_wdata = 32'b0;
+  wire F_allowin, D_allowin, E_allowin, M_allowin, W_allowin;
+  wire F_valid, D_valid, E_valid, M_valid, W_valid;
+  wire F_ready_go, D_ready_go, E_ready_go, M_ready_go, W_ready_go;
+
+  // assign macroscopic_pc = M_pc;
+  // wire [31:0] D_Tuse_rs, D_Tuse_rt, E_Tnew, M_Tnew, W_Tnew;
+
+  // wire D_stall_rs_E, D_stall_rs_M, D_stall_rt_E, D_stall_rt_M, D_stall_rt, D_stall_rs;
+  // wire D_stall, D_stall_mdu, D_instr_mdu, busy, start;
+
+  // wire [4:0] E_SAddr, M_SAddr;
+
+  // wire D_Syscall, D_Break, E_OvArch, E_OvDM;
+  // wire F_eret, D_eret, E_eret, M_eret;
+  wire [31:0] M_cp0, W_cp0, EPC, D_badVAddr, E_badVAddr, M_badVAddr, cp0_EPC;
+  wire [4:0] F_exc, D_exc, E_exc, M_exc;
+  // wire [31:0] M_BadVAddr_new;
+  // wire F_bd, E_bd, M_bd;
+  // wire E_mtc0, M_mtc0;
+  // wire M_AdEL, M_AdES;
+
+  // wire en;
+  // assign en = 1'b1;
+
+  // wire [4:0] F_ExcCode, E_ExcCode, M_ExcCode;
+  // wire [4:0] D_ExcCode_new, E_ExcCode_new, M_ExcCode_new;
+
+  // /// exception
+  // assign F_ExcCode = (F_AdEL) ? 5'd4 : 5'd0;
+
+//   assign D_ExcCode_new = (D_ExcCode) ? D_ExcCode :
+//                          (D_Break)   ? 5'd9      :
+//                          (D_Syscall) ? 5'd8      :
+//                          (D_RI)      ? 5'd10     : 5'd0;
+
+//   assign E_ExcCode_new = (E_ExcCode) ? E_ExcCode :
+//                          (E_OvArch)  ? 5'd12     : 5'd0;
+
+  // assign M_ExcCode_new = (M_ExcCode) ? M_ExcCode :
+  //                        (M_AdEL)    ? 5'd4      : 
+  //                        (M_AdES)    ? 5'd5      : 5'd0;
+
+  // assign M_BadVAddr_new = (M_AdEL || M_AdES) ? M_alu : M_BadVAddr;
+
+  /// exception end
+
+  // -------- F-Stage --------
+  // F-wire
+  wire [31:0] F_pc, F_instr;
+  wire [31:0] MUX_npc;
+  wire D_jump;
+  wire F_sel_npc, F_AdEL;
+
+  // F-connect
+
+
+  reg [31:0] pc;
+  wire [31:0] npc = (F_sel_npc == `f_npc) ? D_npc : pc + 4;
+  always @(posedge clk) begin
+    if (!resetn) pc <= 32'hbfc0_0000;
+    else if (exc_req) pc <= 32'hbfc0_0380;
+    else if (eret) pc <= cp0_EPC;
+    else if (F_allowin) pc <= npc;
+    else pc <= F_pc;
+  end
+
+  assign F_pc = pc;
+
+  wire [31:0] D_pc, D_instr;
+
+  F_block F_block (
+      .clk  (clk),
+      .reset(!resetn),
+
+
+      .allowin_next(D_allowin),
+      .allowin     (F_allowin),
+      .valid_last  (1),
+      .valid       (F_valid),
+
+      .inst_req    (inst_req),
+      .inst_addr   (inst_addr),
+      .inst_rdata  (inst_rdata),
+      .inst_addr_ok(inst_addr_ok),
+      .inst_data_ok(inst_data_ok),
+
+      .pc_in    (F_pc),
+      .pc_out   (D_pc),
+      .instr_out(D_instr),
+      // .req             ( req             ),
+      // .eret            ( eret            ),
+      // .EPC             ( EPC             ),
+      // .F_eret          ( F_eret          ),
+      .exc_o (D_exc),
+      .badVAddr_o      ( D_badVAddr      )
+      // .bdIn            ( bdIn            ),
+      // .bdOut           ( bdOut           )
+  );
+
+
+
+  // -------- D-Stage --------
+  // D-wire
+  wire [31:0] MUX_ext, W_wdata;
+  wire [31:0] HMUX_RD1;
+  wire [31:0] HMUX_RD2;
+  wire [ 4:0] MUX_A3;
+  wire [ 4:0] A1_out, A2_out;
+  wire [31:0] W_out;
+  wire [ 4:0] W_Addr;
+
+  wire [31:0] D_RD1, D_RD2, grf_RD1, grf_RD2, D_ext, D_npc;
+  D_GRF GRF (
+      .clk(clk),
+      .rst(!resetn),
+      .A1 (A1_out),
+      .A2 (A2_out),
+      .A3 (W_Addr),
+      .WE (W_en_GRF),
+      .WD3(W_wdata),
+      .RD1(grf_RD1),
+      .RD2(grf_RD2)
+  );
+  // hazard
+  // assign HMUX_RD1     = (D_rs == E_Addr && E_Addr != 5'b0) ? E_out : 
+  //                         (D_rs == M_Addr && M_Addr != 5'b0) ? M_out : D_RD1;
+  // assign HMUX_RD2     = (D_rt == E_Addr && E_Addr != 5'b0) ? E_out : 
+  //                         (D_rt == M_Addr && M_Addr != 5'b0) ? M_out : D_RD2;
+
+
+  wire [31:0] E_pc, E_instr, E_RD1, E_RD2, E_ext, E_alu, E_mdu;
+  assign D_allowin = D_ready_go && E_ready_go && M_ready_go && W_ready_go ||
+                       D_ready_go && !D_valid || !F_valid;
+
+
+  wire [4:0] E_SAddr, M_SAddr, W_SAddr;
+  wire [31:0] W_fwd_data;
+  wire W_fwd_ok;
+
+  D_block D_block (
+      .clk         (clk),
+      .reset       (!resetn),
+
+      .allowin_next(E_allowin),
+      // .allowin      ( D_allowin      ),
+      .ready_go    (D_ready_go),
+      .valid_last  (F_valid),
+      .valid       (D_valid),
+
+      .inst_rdata  (inst_rdata),
+      .inst_addr_ok(inst_addr_ok),
+      .inst_data_ok(inst_data_ok),
+
+
+      // silly stall way (temporary)
+      .E_SAddr(E_SAddr),
+      .M_SAddr(M_SAddr),
+      .W_SAddr(W_SAddr),
+      .W_fwd_data(W_fwd_data),
+      .W_fwd_ok(W_fwd_ok),
+
+      .start(mdu_start),
+      .busy (mdu_busy),
+
+
+
+
+      .pc_i(D_pc),
+      .pc_o(E_pc),
+
+      .instr_o(E_instr),
+
+      .A1_o (A1_out),
+      .A2_o (A2_out),
+      .RD1_i(grf_RD1),
+      .RD1_o(E_RD1),
+      .RD2_i(grf_RD2),
+      .RD2_o(E_RD2),
+      .ext_i(ext_in),
+      .ext_o(E_ext),
+      .br_o (F_sel_npc),
+      .npc_o(D_npc),
+
+      .cancel(exc_req),
+      .eret(eret),
+      .EPC (cp0_EPC),
+      .exc_i          ( D_exc          ),
+      .exc_o         ( E_exc         ),
+      .badVAddr_i     ( D_badVAddr     ),
+      .badVAddr_o    ( E_badVAddr    ),
+      .bd_i           ( bd_in           ),
+      .bd_o          ( bd_out          )
+  );
+
+
+
+
+  // -------- E-Stage --------
+
+  // E-wire
+  wire [31:0] M_pc, M_instr, M_alu, M_mdu, M_ext, M_RD;
+  wire [31:0] M_RD1, M_RD2, W_RD1, W_RD2;
+  assign E_allowin = E_ready_go && M_ready_go && W_ready_go ||
+                       E_ready_go && !E_valid ||
+                       E_ready_go && M_ready_go && !M_valid || !D_valid;
+  E_block E_block (
+      .clk         (clk),
+      .reset       (!resetn),
+      .allowin_next(M_allowin),
+      // .allowin      ( E_allowin      ),
+      .ready_go    (E_ready_go),
+      .valid_last  (D_valid),
+      .valid       (E_valid),
+
+      .fwd_addr(E_SAddr),
+
+      .start(mdu_start),
+      .busy (mdu_busy),
+
+      .pc_i   (E_pc),
+      .pc_o   (M_pc),
+      .instr_i(E_instr),
+      .instr_o(M_instr),
+      .RD1_i  (E_RD1),
+      .RD1_o  (M_RD1),
+      .RD2_i  (E_RD2),
+      .RD2_o  (M_RD2),
+      .ext_i  (E_ext),
+      .ext_o  (M_ext),
+      .alu_o  (M_alu),
+      .mdu_o  (M_mdu),
+
+      .exc_i           ( E_exc           ),
+      .exc_o           ( M_exc           ),
+      .badVAddr_i      ( E_badVAddr      ),
+      .badVAddr_o      ( M_badVAddr      ),
+      .bd_i            ( bd_i            ),
+      .bd_o            ( bd_o            )
+  );
+
+
+  // -------- M-Stage --------
+  // M-wire
+  wire [31:0] W_pc, W_instr, W_alu, W_mdu;
+  assign M_allowin = M_ready_go && W_ready_go || M_ready_go && !M_valid || !E_valid;
+  M_block M_block (
+      .clk  (clk),
+      .reset(!resetn),
+
+      .allowin_next(W_allowin),
+      // .allowin      ( M_allowin      ),
+      .ready_go    (M_ready_go),
+      .valid_last  (E_valid),
+      .valid       (M_valid),
+
+      .fwd_addr(M_SAddr),
+
+
+      .data_req    (data_req),
+      .data_wr     (data_wr),
+      .data_size   (data_size),
+      .data_addr   (data_addr),
+      .data_wdata  (data_wdata),
+      .data_rdata  (data_rdata),
+      .data_addr_ok(data_addr_ok),
+      .data_data_ok(data_data_ok),
+      .pc_i        (M_pc),
+      .pc_o        (W_pc),
+      .instr_i     (M_instr),
+      .instr_o     (W_instr),
+      .RD1_i       (M_RD1),
+      .RD1_o       (W_RD1),
+      .RD2_i       (M_RD2),
+      .RD2_o       (W_RD2),
+      .ext_i       (M_ext),
+      .ext_o       (W_ext),
+      .alu_i       (M_alu),
+      .alu_o       (W_alu),
+      .mdu_i       (M_mdu),
+      .mdu_o       (W_mdu),
+      .RD_o        (W_RD),
+      .cp0_o       (W_cp0),
+
+
+      .exc_req (exc_req),
+      .cp0_EPC (cp0_EPC),
+      .ext_int (ext_int),
+
+      .exc_i           ( M_exc           ),
+      .exc_o           ( exc_o           ),
+      .badVAddr_i      ( M_badVAddr      ),
+      .badVAddr_o      ( badVAddr_o      ),
+      .bd_i            ( bd_i            ),
+      .bd_o            ( bd_o            )
+  );
+
+
+
+
+
+  // -------- W-Stage --------
+  // W-wire
+  wire [ 1:0] W_sel_A3;
+
+
+  wire [31:0] out_pc;
+  assign W_allowin = W_ready_go || !M_valid;
+
+  W_block u_W_block (
+      .clk         (clk),
+      .reset       (!resetn),
+      .allowin_next(1),
+      // .allowin      ( W_allowin      ),
+      .ready_go    (W_ready_go),
+      .valid_last  (M_valid),
+      .valid       (W_valid),
+
+      .data_rdata  (data_rdata),
+      .data_addr_ok(data_addr_ok),
+      .data_data_ok(data_data_ok),
+
+      .fwd_addr(W_SAddr),
+
+      .pc_i   (W_pc),
+      .pc_o   (out_pc),
+      .instr_i(W_instr),
+      .ext_i  (W_ext),
+      .alu_i  (W_alu),
+      .mdu_i  (W_mdu),
+      .cp0_i  (W_cp0),
+      .RD_i   (W_RD),
+      .W_Wdata(W_wdata),
+      .W_Addr (W_Addr),
+      .W_en   (W_en_GRF)
+  );
+
+  // assign W_SAddr    = W_Addr;
+  assign W_fwd_data        = W_wdata;
+  assign W_fwd_ok          = W_en_GRF;
+
+  assign debug_wb_rf_wen   = (W_en_GRF) ? 4'b1111 : 0;
+  assign debug_wb_rf_wnum  = W_Addr;
+  assign debug_wb_rf_wdata = W_wdata;
+  assign debug_wb_pc       = out_pc;
 
 endmodule  //mips
 

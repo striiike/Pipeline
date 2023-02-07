@@ -6,14 +6,14 @@
 `define EPC      CP0reg[14]
 `define PrID     CP0reg[15]
 
-`define Bev     `SR[22]
+`define Bev     `SR[22]              // read only
 `define IM      `SR[15:8]            // state interrupt mask
 `define EXL     `SR[1]               // in exception level
 `define IE      `SR[0]               // interrupt enable
 
 `define BD      `Cause[31]           // branch delay
 `define TI      `Cause[30]           // timer interrupt
-`define IP      `Cause[15:8]        // interrupt pending    hwint & swint
+`define IP      `Cause[15:8]         // interrupt pending    hwint & swint
 `define ExcCode `Cause[6:2]          // exccode cause
 
 module CP0 (
@@ -53,7 +53,7 @@ module CP0 (
         `PrID  <= "h1ccup";
     end
 
-    wire [7:0] Intsrc = {HWInt[5] | `TI, HWInt[4:0], `Cause[9:8]};
+    wire [7:0] Intsrc = {HWInt[5] | `TI, HWInt[4:0], `Cause[9:8]} & {8{|VPC}};
     wire IntReq     = (|(Intsrc & `IM)) && `IE && ~`EXL;
     wire ExcCodeReq = (|ExcCodeIn) && ~`EXL;
 
@@ -74,7 +74,7 @@ module CP0 (
             `SR[7:0]   <= 0;
             `Cause <= 0;
             `PrID  <= "h1ccup";
-        end else begin
+        end else if (|VPC) begin
             `IP <= Intsrc;
             if (EXLClr) `EXL <= 1'b0;
             if (WE && (A2 >= 5'd8 && A2 <= 5'd15)) begin
