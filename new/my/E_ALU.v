@@ -41,7 +41,16 @@ module E_ALU (
                     (ALUControl == `alu_SRAV)   ? srav :
                     (ALUControl == `alu_SRL)    ? B >> shamt  :
                     (ALUControl == `alu_SRLV)   ? B >> A[4:0] :
+                    // (ALUControl == `alu_mul)    ? P[31:0] :
                                                   0;
+
+    // wire [63:0] P = A * B;
+    // multiplier multiplier (
+    //     .A(A),
+    //     .B(B),
+    //     .P(P)
+    // );
+
 
     wire [32:0] tempA = {A[31], A};
     wire [32:0] tempB = {B[31], B};

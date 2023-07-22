@@ -17,10 +17,9 @@ module D_NPC (
     output isNPC
 );
 
-    assign npc = /*(eret)                         ? EPC :*/
-                 (sel == `npc_offset && brCtrl) ? {imm16[29:0], 2'b00} + pc + 4 : 
+    assign npc = (sel == `npc_offset && brCtrl) ? {imm16[29:0], 2'b00} + pc + 4 : 
                  (sel == `npc_index)            ? imm26 : 
                  (sel == `npc_ra)               ? ra : 
                                                 pc + 8 ;
-    assign isNPC = (sel != 2'b11) /*| eret*/;
+    assign isNPC = (sel != 2'b11);
 endmodule

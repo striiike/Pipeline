@@ -45,6 +45,7 @@ module CTRL (
     output [31:0] W_Tnew,
 
     // exception
+    output load,
     output mtc0,
     output eret,
     output RI,
@@ -134,16 +135,18 @@ module CTRL (
     assign eret     = (instr == `op_eret);
 
 
-
+    // extra
+    wire mul = (op == `op_mul && f == `f_mul);
+    // wire mul = 0;
 
 
 
 
     assign arch = add | addi | sub;
-    wire load, store, branch, cal_r, cal_i, md, mt, mf;
+    wire store, branch, cal_r, cal_i, md, mt, mf;
     assign loadstore = load | store;
 
-    assign cal_r =  add | sub | addu | subu |
+    assign cal_r =  add | sub | addu | subu | mul |
                     slt | sltu |
                     sll | sllv | sra | srav | srl | srlv |
                     And | Or | Xor | Nor; // exclude jr & jalr & mt/mf/md
@@ -169,17 +172,17 @@ module CTRL (
     // assign shiftV = sllv | srlv | srav;
     wire shift = sll | srl | sra | sllv | srlv | srav;
 
-    // ---- exception ---- 
-    assign RI = ~(load | store | branch | branchal | cal_i | cal_r 
-                | j | jr | jal | jalr | lui
-                | md | mt | mf 
-                | sll | srl | sra
-                | sllv | srlv | srav
-                | mtc0 | mfc0 | eret | syscall | Break);
+    // // ---- exception ---- 
+    // assign RI = ~(load | store | branch | branchal | cal_i | cal_r 
+    //             | j | jr | jal | jalr | lui
+    //             | md | mt | mf 
+    //             | sll | srl | sra
+    //             | sllv | srlv | srav
+    //             | mtc0 | mfc0 | eret | syscall | Break);
 
-    assign en_CP0 = mtc0;
-    assign jump = branch | branchal | j | jr | jal | jalr; // delayed branching
-    // ---- exception end ----
+    // assign en_CP0 = mtc0;
+    // assign jump = branch | branchal | j | jr | jal | jalr; // delayed branching
+    // // ---- exception end ----
 
 
     // -------- main controller --------
@@ -189,13 +192,14 @@ module CTRL (
                       (jal | jalr | branchal)  ? `grf_ra : 
                                                  `grf_rt ;
 
-    assign E_sel_MDU = (mult) ? `mdu_mult : 
-                       (multu) ? `mdu_multu :
-                       (div) ? `mdu_div :
-                       (divu) ? `mdu_divu :
-                       (mfhi) ? `mdu_mfhi :
-                       (mflo) ? `mdu_mflo :
-                       (mthi) ? `mdu_mthi :
+    assign E_sel_MDU = (mul)  ? `mdu_mul :
+                    //    (mult) ? `mdu_mult : 
+                    //    (multu) ? `mdu_multu :
+                    //    (div) ? `mdu_div :
+                    //    (divu) ? `mdu_divu :
+                    //    (mfhi) ? `mdu_mfhi :
+                    //    (mflo) ? `mdu_mflo :
+                    //    (mthi) ? `mdu_mthi :
                        (mtlo) ? `mdu_mtlo : 4'b1111;
 
     assign M_en_DM   = (store);
@@ -240,6 +244,7 @@ module CTRL (
                         (srav)                      ? `alu_SRAV :
                         (srl)                       ? `alu_SRL :
                         (srlv)                      ? `alu_SRLV :
+                        // (mul)                       ? `alu_mul :
                                                         5'b0;
 
     assign M_sel_st = (sw) ? 2'b00 :
@@ -275,13 +280,13 @@ module CTRL (
                                               `e_fsel_ext ;
 
     assign M_fsel = (jal | jalr | branchal) ? `m_fsel_pc8 : 
-                    (mf)                    ? `m_fsel_mdu : 
+                    (mf | mul)                    ? `m_fsel_mdu : 
                                               `m_fsel_alu ;
 
 
     assign W_fsel = (load)                  ? `wd3_rd  : 
                     (jal | jalr | branchal) ? `wd3_pc  : 
-                    (mf)                    ? `wd3_mdu : 
+                    (mf | mul)              ? `wd3_mdu : 
                     (mfc0)                  ? `wd3_cp0 :
                                               `wd3_alu ;
 

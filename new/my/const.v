@@ -1,53 +1,3 @@
-// F
-// MUX_npc
-`define f_pc4 1'b0
-`define f_npc 1'b1
-
-// E
-// MUX_srcB
-`define e_rd2 1'b0
-`define e_ext 1'b1
-
-
-// W
-// MUX_WD3
-`define w_rd 3'b000
-`define w_alu 3'b001
-`define w_pc8 3'b010
-`define w_mdu 3'b011
-`define w_cp0 3'b100
-
-`define grf_rt 2'b00
-`define grf_rd 2'b01
-`define grf_ra 2'b10
-
-`define ext_zero 2'b00
-`define ext_sign 2'b01
-`define ext_lui 2'b10
-
-
-`define e_fsel_pc8 2'b01
-`define e_fsel_ext 2'b00
-
-`define m_fsel_mdu 2'b10
-`define m_fsel_pc8 2'b01
-`define m_fsel_alu 2'b00
-
-`define m_sw 2'b00
-`define m_sh 2'b01
-`define m_sb 2'b10
-
-
-
-
-
-
-
-
-
-
-
-
 
 `define op_r      6'b000000
 `define op_branch 6'b000001
@@ -71,6 +21,8 @@
 `define op_addi   6'b001000
 `define op_andi   6'b001100
 `define op_xori   6'b001110
+
+`define op_mul    6'b011100
 
 `define op_lb     6'b100000
 `define op_lbu    6'b100100
@@ -114,6 +66,8 @@
 `define f_multu   6'b011001
 `define f_div     6'b011010
 `define f_divu    6'b011011
+
+`define f_mul     6'b000010
 
 
 
@@ -164,7 +118,7 @@
 `define alu_SRAV   5'd22
 `define alu_SRL    5'd23
 `define alu_SRLV   5'd24
-
+`define alu_mul    5'd25
 
  
 
@@ -195,3 +149,44 @@
 `define mdu_mflo 4'd6
 `define mdu_mthi 4'd7
 `define mdu_mtlo 4'd8
+
+`define mdu_mul 4'd9
+
+
+// F
+// MUX_npc
+`define f_pc4 1'b0
+`define f_npc 1'b1
+
+// E
+// MUX_srcB
+`define e_rd2 1'b0
+`define e_ext 1'b1
+
+// W
+// MUX_WD3
+`define w_rd 3'b000
+`define w_alu 3'b001
+`define w_pc8 3'b010
+`define w_mdu 3'b011
+`define w_cp0 3'b100
+
+`define grf_rt 2'b00
+`define grf_rd 2'b01
+`define grf_ra 2'b10
+
+`define ext_zero 2'b00
+`define ext_sign 2'b01
+`define ext_lui 2'b10
+
+
+`define e_fsel_pc8 2'b01
+`define e_fsel_ext 2'b00
+
+`define m_fsel_mdu 2'b10
+`define m_fsel_pc8 2'b01
+`define m_fsel_alu 2'b00
+
+`define m_sw 2'b00
+`define m_sh 2'b01
+`define m_sb 2'b10
